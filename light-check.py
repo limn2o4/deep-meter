@@ -18,10 +18,12 @@ def drawHist(hist):
 
 img = cv2.imread("D:\project\deep-meter\led2.jpg")
 r,g,b = cv2.split(img)
+h,w,c = np.shape(img)
 _,b_th = cv2.threshold(b,200,255,cv2.THRESH_BINARY)
 _,g_th = cv2.threshold(g,200,255,cv2.THRESH_BINARY)
 _,r_th = cv2.threshold(r,200,255,cv2.THRESH_BINARY)
-cv2.imshow("org",img)
-cv2.imshow("g",g_thres)
-cv2.imshow("r",r_th)
+res = g_th - r_th;
+
+cv2.imshow("g",res)
+cv2.imshow("123",)
 cv2.waitKey(0)
