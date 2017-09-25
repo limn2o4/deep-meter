@@ -9,7 +9,7 @@ IMAGE_WIDTH = 128
 IMAGE_PIXELS = 128*128
 CHARSET_LEN = 10
 
-def getNextbatch(batch_size = 10):
+def get_next_batch(batch_size = 10):
     batch_x = np.zeros([batch_size,IMAGE_HEIGHT*IMAGE_WIDTH])
     batch_y = np.zeros([batch_size,CHARSET_LEN])
     with open("data/list.txt","r+") as file :
@@ -90,7 +90,7 @@ def train_cnn():
         sess.run(tf.global_variables_initializer())
 
         for step in range(100):
-            batch_x,batch_y = getNextBatch(10)
+            batch_x,batch_y = get_next_batch(10)
             _,loss_ = sess.run([optimizer,loss],feed_dict= {X:batch_x,Y:batch_y})
             print(step,loss_)
             if step % 10 == 0:
