@@ -1,17 +1,46 @@
 import tensorflow as tf
-import numpy as nu
+import numpy as np
 import scipy as sci
 import tempfile
+import argparse
 import cv2
 IMAGE_HEIGHT = 128
 IMAGE_WIDTH = 128
 IMAGE_PIXELS = 128*128
+CHARSET_LEN = 10
 
+def getNextbatch(batch_size = 10):
+    batch_x = np.zeros([batch_size,IMAGE_HEIGHT*IMAGE_WIDTH])
+    batch_y = np.zeros([batch_size,CHARSET_LEN])
+    with open("data/list.txt","r+") as file :
+        for i in range(batch_size):
+            lines = file.readline()
+            text,path = lines.split(" ")
+            image = cv2.imread(path,0)
+            batch_x[i:] = image.flatten()/255
+            batch_y[i:] = text2vec(text)
+    return batch_x,batch_y
 
+def text2vec(text):
+    vector = np.zeros(100)
+    for i,c in enumerate(text):
+        idx = i*10+ord(c)
+        vector[idx] = 1
+    return vector
 
+def vec2text(vector):
+    text = []*10
+    vec = np.nonzero(vector)[0]
+    for i in vector:
+        if vector[i] == 1:
+            idx = i % 10
+            c = chr(i//10)
+            text[i] = c
+    return  text
+X = tf.placehloder(tf.float32,shape = [None])
+Y = tf.placeholder(tf.float32,shape = [None])
 def build_cnn(w_alpha= 0.1,b_alpha = 0.1):
-    X = tf.placehloder(tf.float32,shpe = [None])
-    Y = tf.placeholder(tf.float32,shape = [None])
+
     keep_prob = tf.placeholder(tf.float32)
     x = tf.reshape(X,shape= [-1,IMAGE_HEIGHT,IMAGE_WIDTH,1])
 
@@ -46,6 +75,27 @@ def build_cnn(w_alpha= 0.1,b_alpha = 0.1):
 
     return out
 # need more complicated framewrok 3x3conv2d and char2vec
+def train_cnn():
+    output = build_cnn()
+    #loss function
+    loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(cnn,Y))
+    optimizer = tf.train.AdamOptimizer(learning_rate=0.001).minimize(loss)
+    hyp = tf.reshape(output , [-1,10,4])
+    max_p = tf.argmax(hyp,2)
+    max_l = tf.argmax(tf.reshape(Y,[-1,10,4],),2)
+    corrected = tf.equal(max_l,max_p)
+    accuracy = tf.reduce_mean((tf.cast(corrected,tf.float32)))
+    saver = tf.train.Saver()
+    with tf.Session() as sess:
+        sess.run(tf.global_variables_initializer())
+
+        for step in range(100):
+            batch_x,batch_y = getNextBatch(10)
+            _,loss_ = sess.run([optimizer,loss],feed_dict= {X:batch_x,Y:batch_y})
+            print(step,loss_)
+            if step % 10 == 0:
+                accuracy_ = sess.run(accuracy,feed_dict={X:batch_x,Y:batch_y})
+    saver.save(sess,"digital_rec.model",global_step=step)
 
 
 if  __name__ == '__main__':
