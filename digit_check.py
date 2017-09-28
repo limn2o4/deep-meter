@@ -3,6 +3,7 @@ import numpy as np
 import scipy as sci
 import tempfile
 import argparse
+import data.input_data as data
 import cv2
 IMAGE_HEIGHT = 128
 IMAGE_WIDTH = 128
@@ -12,32 +13,32 @@ CHARSET_LEN = 10
 def get_next_batch(batch_size = 10):
     batch_x = np.zeros([batch_size,IMAGE_HEIGHT*IMAGE_WIDTH])
     batch_y = np.zeros([batch_size,CHARSET_LEN])
-    with open("data/list.txt","r+") as file :
-        for i in range(batch_size):
-            lines = file.readline()
-            text,path = lines.split(" ")
-            image = cv2.imread(path,0)
-            batch_x[i:] = image.flatten()/255
-            batch_y[i:] = text2vec(text)
+    for i in range(1,batch_size):
+        test,image = data.get_data(i)
+        np.reshape(image,[IMAGE_HEIGHT,IMAGE_WIDTH])
+        batch_x[i:] = image
+        batch_y[i:] = test
+            #print(batch_y[i:])
     return batch_x,batch_y
 
 def text2vec(text):
-    vector = np.zeros(100)
+    vector = np.zeros(200)
     for i,c in enumerate(text):
-        idx = i*10+ord(c)
+        idx = i*10+ord(c) - ord('0')
         vector[idx] = 1
     return vector
 
 def vec2text(vector):
-    text = []*10
-    vec = np.nonzero(vector)[0]
-    for i in vector:
+    text = np.zeros(CHARSET_LEN)
+    #vec = np.nonzero(vector)[0]
+    for i in range(len(vector)):
         if vector[i] == 1:
-            idx = i % 10
-            c = chr(i//10)
-            text[i] = c
+            idx = i // 10
+            c = i % 10
+            #print(idx,c)
+            text[idx] = c
     return  text
-X = tf.placehloder(tf.float32,shape = [None])
+X = tf.placeholder(tf.float32,shape = [None])
 Y = tf.placeholder(tf.float32,shape = [None])
 def build_cnn(w_alpha= 0.1,b_alpha = 0.1):
 
@@ -65,7 +66,7 @@ def build_cnn(w_alpha= 0.1,b_alpha = 0.1):
     w_f = tf.Variable(w_alpha*tf.random_normal([8*20*64,1024]))
     b_f = tf.Variable(b_alpha*tf.random_normal([1024]))
     fc1 = tf.reshape(conv3,[-1,w_f.get_shape().as_list()[0]])
-    fc1 = tf.nn.relu(tf.add(tf.matmul(w_f,conv3),b_f))
+    fc1 = tf.nn.relu(tf.add(tf.matmul(fc1,w_f),b_f))
     fc1 = tf.nn.dropout(fc1,keep_prob)
 
     w_out = tf.Variable(w_alpha*tf.random_normal([1024,4*10]))
@@ -100,3 +101,4 @@ def train_cnn():
 
 if  __name__ == '__main__':
     netwrok = build_cnn()
+    get_next_batch()

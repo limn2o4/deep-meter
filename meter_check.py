@@ -14,7 +14,7 @@ def minfilter(image,ksize = 3):
     return dst
 
 
-img = cv2.imread(r"D:\project\deep-meter\meter2.jpg")
+img = cv2.imread("D:/project/deep-meter/meter2.jpg")
 gary = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
 binary = cv2.adaptiveThreshold(gary,255,cv2.ADAPTIVE_THRESH_MEAN_C,cv2.THRESH_BINARY,7,10)
 #mn = minfilter(binary,3)
