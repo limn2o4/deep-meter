@@ -5,9 +5,9 @@ import tempfile
 import argparse
 import data.input_data as data
 import cv2
-IMAGE_HEIGHT = 128
-IMAGE_WIDTH = 128
-IMAGE_PIXELS = 128*128
+IMAGE_HEIGHT = 60
+IMAGE_WIDTH = 160
+IMAGE_PIXELS = 160*60
 CHARSET_LEN = 10
 
 def get_next_batch(batch_size = 10):
@@ -15,8 +15,9 @@ def get_next_batch(batch_size = 10):
     batch_y = np.zeros([batch_size,CHARSET_LEN])
     for i in range(1,batch_size):
         test,image = data.get_data(i)
-        np.reshape(image,[IMAGE_HEIGHT,IMAGE_WIDTH])
-        batch_x[i:] = image
+        #print(image)
+        #np.reshape(image,[IMAGE_HEIGHT,IMAGE_WIDTH])
+        batch_x[i:] = image.flatten()/255
         batch_y[i:] = test
             #print(batch_y[i:])
     return batch_x,batch_y
@@ -40,9 +41,10 @@ def vec2text(vector):
     return  text
 X = tf.placeholder(tf.float32,shape = [None])
 Y = tf.placeholder(tf.float32,shape = [None])
+keep_prob = tf.placeholder(tf.float32)
 def build_cnn(w_alpha= 0.1,b_alpha = 0.1):
 
-    keep_prob = tf.placeholder(tf.float32)
+
     x = tf.reshape(X,shape= [-1,IMAGE_HEIGHT,IMAGE_WIDTH,1])
 
     w_c1 = tf.Variable(w_alpha*tf.random_normal([3,3,1,32]))
@@ -79,7 +81,7 @@ def build_cnn(w_alpha= 0.1,b_alpha = 0.1):
 def train_cnn():
     output = build_cnn()
     #loss function
-    loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(cnn,Y))
+    loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=output,labels=Y))
     optimizer = tf.train.AdamOptimizer(learning_rate=0.001).minimize(loss)
     hyp = tf.reshape(output , [-1,10,4])
     max_p = tf.argmax(hyp,2)
@@ -98,7 +100,25 @@ def train_cnn():
                 accuracy_ = sess.run(accuracy,feed_dict={X:batch_x,Y:batch_y})
     saver.save(sess,"digital_rec.model",global_step=step)
 
+def rec_by_cnn(image):
+    out = build_cnn();
+    saver = tf.train.Saver();
+    with tf.Session() as sess:
+        saver.restore(sess,tf.train.latest_checkpoint('.'))
+
+        predict = tf.argmax(tf.reshape(out,[-1,12,10,]),2)
+        text_list = sess.run(predict,feed_dict={X:[image],keep_prob:1})
+        test = text_list[0].tolist()
+        vector = np.zeros(12*10)
+        i = 0
+        for p in test:
+            vector[i*10+p] = 1
+            i+=1
+        result = vec2text(vector)
+    print(predict)
 
 if  __name__ == '__main__':
-    netwrok = build_cnn()
-    get_next_batch()
+    #netwrok = build_cnn()
+    train_cnn()
+    #file = open(r'D:\project\deep-meter\data\numbers.txt',"r")
+    #get_next_batch()
