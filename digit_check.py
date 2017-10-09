@@ -8,11 +8,11 @@ import cv2
 IMAGE_HEIGHT = 60
 IMAGE_WIDTH = 160
 IMAGE_PIXELS = 160*60
-CHARSET_LEN = 10
-
+CHARSET_LEN = 16
+MAX_LEN = 16
 def get_next_batch(batch_size = 10):
     batch_x = np.zeros([batch_size,IMAGE_HEIGHT*IMAGE_WIDTH])
-    batch_y = np.zeros([batch_size,CHARSET_LEN])
+    batch_y = np.zeros([batch_size,CHARSET_LEN*MAX_LEN])
     for i in range(1,batch_size):
         test,image = data.get_data(i)
         #print(image)
@@ -39,9 +39,9 @@ def vec2text(vector):
             #print(idx,c)
             text[idx] = c
     return  text
-X = tf.placeholder(tf.float32,shape = [None])
-Y = tf.placeholder(tf.float32,shape = [None])
-keep_prob = tf.placeholder(tf.float32)
+X = tf.placeholder(tf.float32,shape = [None,IMAGE_WIDTH*IMAGE_HEIGHT])
+Y = tf.placeholder(tf.float32,shape = [None,MAX_LEN*CHARSET_LEN])
+keep_prob = tf.placeholder(dtype=tf.float32)
 def build_cnn(w_alpha= 0.1,b_alpha = 0.1):
 
 
@@ -68,12 +68,14 @@ def build_cnn(w_alpha= 0.1,b_alpha = 0.1):
     w_f = tf.Variable(w_alpha*tf.random_normal([8*20*64,1024]))
     b_f = tf.Variable(b_alpha*tf.random_normal([1024]))
     fc1 = tf.reshape(conv3,[-1,w_f.get_shape().as_list()[0]])
+    print("shape wf1", w_f.get_shape().as_list()[0])
     fc1 = tf.nn.relu(tf.add(tf.matmul(fc1,w_f),b_f))
     fc1 = tf.nn.dropout(fc1,keep_prob)
 
-    w_out = tf.Variable(w_alpha*tf.random_normal([1024,4*10]))
-    b_out = tf.Variable(b_alpha*tf.random_normal([1024]))
-    out = tf.add(tf.matmul(w_out,fc1),b_out)
+    w_out = tf.Variable(w_alpha*tf.random_normal([1024,MAX_LEN*CHARSET_LEN]))
+    b_out = tf.Variable(b_alpha*tf.random_normal([MAX_LEN*CHARSET_LEN]))
+    print("shape",fc1.get_shape())
+    out = tf.add(tf.matmul(fc1,w_out),b_out)
     out = tf.nn.softmax(out)
 
     return out
@@ -83,22 +85,23 @@ def train_cnn():
     #loss function
     loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=output,labels=Y))
     optimizer = tf.train.AdamOptimizer(learning_rate=0.001).minimize(loss)
-    hyp = tf.reshape(output , [-1,10,4])
+    hyp = tf.reshape(output ,shape = [-1,MAX_LEN,CHARSET_LEN])
     max_p = tf.argmax(hyp,2)
-    max_l = tf.argmax(tf.reshape(Y,[-1,10,4],),2)
+    max_l = tf.argmax(tf.reshape(Y,[-1,MAX_LEN,CHARSET_LEN]),2)
     corrected = tf.equal(max_l,max_p)
     accuracy = tf.reduce_mean((tf.cast(corrected,tf.float32)))
     saver = tf.train.Saver()
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
 
-        for step in range(100):
-            batch_x,batch_y = get_next_batch(10)
-            _,loss_ = sess.run([optimizer,loss],feed_dict= {X:batch_x,Y:batch_y})
-            print(step,loss_)
-            if step % 10 == 0:
-                accuracy_ = sess.run(accuracy,feed_dict={X:batch_x,Y:batch_y})
-    saver.save(sess,"digital_rec.model",global_step=step)
+        for step in range(20):
+            batch_x,batch_y = get_next_batch(5)
+            #print(batch_y)
+            _,loss_ = sess.run([optimizer,loss],feed_dict= {X:batch_x,Y:batch_y,keep_prob:0.75})
+
+            accuracy_ = sess.run(accuracy,feed_dict={X:batch_x,Y:batch_y,keep_prob:1.0})
+            print(step,loss_,accuracy_)
+    #saver.save(sess,"digital_rec.model",global_step=step)
 
 def rec_by_cnn(image):
     out = build_cnn();
@@ -106,10 +109,10 @@ def rec_by_cnn(image):
     with tf.Session() as sess:
         saver.restore(sess,tf.train.latest_checkpoint('.'))
 
-        predict = tf.argmax(tf.reshape(out,[-1,12,10,]),2)
+        predict = tf.argmax(tf.reshape(out,[-1,MAX_LEN,CHARSET_LEN]),2)
         text_list = sess.run(predict,feed_dict={X:[image],keep_prob:1})
         test = text_list[0].tolist()
-        vector = np.zeros(12*10)
+        vector = np.zeros(MAX_LEN*CHARSET_LEN)
         i = 0
         for p in test:
             vector[i*10+p] = 1
