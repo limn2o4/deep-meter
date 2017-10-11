@@ -4,7 +4,7 @@ import scipy as sci
 import tempfile
 import argparse
 import data.input_data as data
-import cv2
+import random
 IMAGE_HEIGHT = 60
 IMAGE_WIDTH = 160
 IMAGE_PIXELS = 160*60
@@ -13,8 +13,10 @@ MAX_LEN = 16
 def get_next_batch(batch_size = 10):
     batch_x = np.zeros([batch_size,IMAGE_HEIGHT*IMAGE_WIDTH])
     batch_y = np.zeros([batch_size,CHARSET_LEN*MAX_LEN])
+    total = data.get_size()
     for i in range(1,batch_size):
-        test,image = data.get_data(i)
+        idx = random.randint(1,total-1)
+        test,image = data.get_data(idx)
         #print(image)
         #np.reshape(image,[IMAGE_HEIGHT,IMAGE_WIDTH])
         batch_x[i:] = image.flatten()/255
@@ -22,11 +24,15 @@ def get_next_batch(batch_size = 10):
             #print(batch_y[i:])
     return batch_x,batch_y
 
-def text2vec(text):
+def text2vec(num):
     vector = np.zeros(200)
-    for i,c in enumerate(text):
-        idx = i*10+ord(c) - ord('0')
+    i = 0
+    while num != 0:
+        idx = i*10 + num%10
+        print(idx)
         vector[idx] = 1
+        num = num // 10
+        i+=1
     return vector
 
 def vec2text(vector):
@@ -68,13 +74,13 @@ def build_cnn(w_alpha= 0.1,b_alpha = 0.1):
     w_f = tf.Variable(w_alpha*tf.random_normal([8*20*64,1024]))
     b_f = tf.Variable(b_alpha*tf.random_normal([1024]))
     fc1 = tf.reshape(conv3,[-1,w_f.get_shape().as_list()[0]])
-    print("shape wf1", w_f.get_shape().as_list()[0])
+    #print("shape wf1", w_f.get_shape().as_list()[0])
     fc1 = tf.nn.relu(tf.add(tf.matmul(fc1,w_f),b_f))
     fc1 = tf.nn.dropout(fc1,keep_prob)
 
     w_out = tf.Variable(w_alpha*tf.random_normal([1024,MAX_LEN*CHARSET_LEN]))
     b_out = tf.Variable(b_alpha*tf.random_normal([MAX_LEN*CHARSET_LEN]))
-    print("shape",fc1.get_shape())
+    #print("shape",fc1.get_shape())
     out = tf.add(tf.matmul(fc1,w_out),b_out)
     out = tf.nn.softmax(out)
 
@@ -94,13 +100,17 @@ def train_cnn():
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
 
-        for step in range(20):
-            batch_x,batch_y = get_next_batch(5)
+        for step in range(50):
+            batch_x,batch_y = get_next_batch(8)
             #print(batch_y)
             _,loss_ = sess.run([optimizer,loss],feed_dict= {X:batch_x,Y:batch_y,keep_prob:0.75})
 
             accuracy_ = sess.run(accuracy,feed_dict={X:batch_x,Y:batch_y,keep_prob:1.0})
-            print(step,loss_,accuracy_)
+            print(step, loss_, accuracy_)
+            if accuracy_ >= 0.8 :
+                saver.save(sess,"./model1.0.model",global_step=step)
+                break
+
     #saver.save(sess,"digital_rec.model",global_step=step)
 
 def rec_by_cnn(image):
@@ -119,9 +129,19 @@ def rec_by_cnn(image):
             i+=1
         result = vec2text(vector)
     print(predict)
+    return result
 
 if  __name__ == '__main__':
     #netwrok = build_cnn()
-    train_cnn()
+    #train_cnn()
+
+
+    text,image = data.get_data(3)
+    image = image.flatten()/255
+    predict_text = rec_by_cnn(image)
+    print("Right:{},predict{}".format(text,predict_text))
+    vec = text2vec(text)
+    text2 = vec2text(vec)
+    print("test",text2)
     #file = open(r'D:\project\deep-meter\data\numbers.txt',"r")
     #get_next_batch()
