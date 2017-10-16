@@ -1,147 +1,70 @@
 import tensorflow as tf
 import numpy as np
 import scipy as sci
-import tempfile
 import argparse
 import data.input_data as data
 import random
-IMAGE_HEIGHT = 60
-IMAGE_WIDTH = 160
-IMAGE_PIXELS = 160*60
-CHARSET_LEN = 16
-MAX_LEN = 16
-def get_next_batch(batch_size = 10):
-    batch_x = np.zeros([batch_size,IMAGE_HEIGHT*IMAGE_WIDTH])
-    batch_y = np.zeros([batch_size,CHARSET_LEN*MAX_LEN])
-    total = data.get_size()
-    for i in range(1,batch_size):
-        idx = random.randint(1,total-1)
-        test,image = data.get_data(idx)
-        #print(image)
-        #np.reshape(image,[IMAGE_HEIGHT,IMAGE_WIDTH])
-        batch_x[i:] = image.flatten()/255
-        batch_y[i:] = test
-            #print(batch_y[i:])
-    return batch_x,batch_y
-
-def text2vec(num):
-    vector = np.zeros(200)
-    i = 0
-    while num != 0:
-        idx = i*10 + num%10
-        print(idx)
-        vector[idx] = 1
-        num = num // 10
-        i+=1
-    return vector
-
-def vec2text(vector):
-    text = np.zeros(CHARSET_LEN)
-    #vec = np.nonzero(vector)[0]
-    for i in range(len(vector)):
-        if vector[i] == 1:
-            idx = i // 10
-            c = i % 10
-            #print(idx,c)
-            text[idx] = c
-    return  text
-X = tf.placeholder(tf.float32,shape = [None,IMAGE_WIDTH*IMAGE_HEIGHT])
-Y = tf.placeholder(tf.float32,shape = [None,MAX_LEN*CHARSET_LEN])
-keep_prob = tf.placeholder(dtype=tf.float32)
-def build_cnn(w_alpha= 0.1,b_alpha = 0.1):
 
 
-    x = tf.reshape(X,shape= [-1,IMAGE_HEIGHT,IMAGE_WIDTH,1])
+#version 2 leNet-5
 
-    w_c1 = tf.Variable(w_alpha*tf.random_normal([3,3,1,32]))
-    b_c1 = tf.Variable(b_alpha*tf.random_normal([32]))
-    conv1 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(x,w_c1,[1,1,1,1],padding= 'SAME'),b_c1))
-    conv1 = tf.nn.max_pool(conv1,ksize=[1,2,2,1],strides=[1,2,2,1],padding= 'SAME')
-    conv1 = tf.nn.dropout(conv1,keep_prob)
+X = tf.placeholder("float",shape=[None,784])
+Y = tf.placeholder("float",shape=[None,11])
+keep_prob = tf.placeholder(tf.float32)
+def get_network():
+    x_img = tf.reshape(X, [-1, 32, 32, 1])
+    with tf.variable_scope("l1-conv1"):
+        w1 = tf.Variable(tf.truncated_normal([5, 5, 1, 32], dtype='float'))
+        b1 = tf.Constant([32], value=0.1)
 
-    w_c2 = tf.Variable(w_alpha*tf.random_normal([3,3,32,64]))
-    b_c2 = tf.Variable(b_alpha*tf.random_normal([64]))
-    conv2 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(conv1,w_c2,strides=[1,1,1,1],padding='SAME'),b_c2))
-    conv2 = tf.nn.max_pool(conv2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='SAME')
-    conv2 = tf.nn.dropout(conv2,keep_prob)
+        conv1 = tf.nn.conv2d(x_img, w1, strides=[1, 1, 1, 1], padding='SAME')
+        relu1 = tf.nn.relu(tf.nn.bias_add(conv1, b1))
 
-    w_c3 = tf.Variable(w_alpha*tf.random_normal([3,3,64,64]))
-    b_c3 = tf.Variable(b_alpha*tf.random_normal([64]))
-    conv3 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(conv2,w_c3,strides=[1,1,1,1],padding='SAME'),b_c3))
-    conv3 = tf.nn.max_pool(conv3,ksize = [1,2,2,1],strides=[1,2,2,1],padding='SAME')
-    conv3= tf.nn.dropout(conv3,keep_prob)
+    with tf.variable_scope("l2-pool1"):
+        pool1 = tf.nn.max_pool(relu1, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
-    w_f = tf.Variable(w_alpha*tf.random_normal([8*20*64,1024]))
-    b_f = tf.Variable(b_alpha*tf.random_normal([1024]))
-    fc1 = tf.reshape(conv3,[-1,w_f.get_shape().as_list()[0]])
-    #print("shape wf1", w_f.get_shape().as_list()[0])
-    fc1 = tf.nn.relu(tf.add(tf.matmul(fc1,w_f),b_f))
-    fc1 = tf.nn.dropout(fc1,keep_prob)
+    with tf.variable_scope("l3-conv2"):
+        w2 = tf.Variable(tf.truncated_normal([5, 5, 32, 64], dtype='float'))
+        b2 = tf.Constant([64], value=0.1)
 
-    w_out = tf.Variable(w_alpha*tf.random_normal([1024,MAX_LEN*CHARSET_LEN]))
-    b_out = tf.Variable(b_alpha*tf.random_normal([MAX_LEN*CHARSET_LEN]))
-    #print("shape",fc1.get_shape())
-    out = tf.add(tf.matmul(fc1,w_out),b_out)
-    out = tf.nn.softmax(out)
+        relu2 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(pool1, w2, strides=[1, 1, 1, 1], padding='SAME'), b2))
 
-    return out
-# need more complicated framewrok 3x3conv2d and char2vec
-def train_cnn():
-    output = build_cnn()
-    #loss function
-    loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=output,labels=Y))
-    optimizer = tf.train.AdamOptimizer(learning_rate=0.001).minimize(loss)
-    hyp = tf.reshape(output ,shape = [-1,MAX_LEN,CHARSET_LEN])
-    max_p = tf.argmax(hyp,2)
-    max_l = tf.argmax(tf.reshape(Y,[-1,MAX_LEN,CHARSET_LEN]),2)
-    corrected = tf.equal(max_l,max_p)
-    accuracy = tf.reduce_mean((tf.cast(corrected,tf.float32)))
-    saver = tf.train.Saver()
+    with tf.variable_scope("l4-pool2"):
+        pool2 = tf.nn.max_pool(relu2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+
+    with tf.variable_scope("l5-fc1"):
+        w3 = tf.Variable(tf.truncated_normal([8 * 8 * 64, 1024]))
+        b3 = tf.Constant(tf.truncated_normal([1024]), value=0.1)
+        pool2_vec = tf.reshape(pool2, [-1, 8 * 8 * 64])
+        fc1 = tf.nn.relu(tf.nn.bias_add(tf.matmul(pool2_vec, w3)))
+
+    with tf.variable_scope("l6-output"):
+
+        fc1 = tf.nn.dropout(fc1, keep_prob)
+        w3 = tf.Variable(tf.truncated_normal([1024, 11]))
+        b3 = tf.Constant([11], value=0.1)
+        output = tf.nn.sigmoid(tf.nn.bias_add(tf.matmul(fc1, w3), b3))
+
+    return output
+def train_network(output):
+    cross_entropy = tf.reduce_mean(-tf.reduce_mean(Y*tf.log(output),reduction_indices=[1]))
+    train_step = tf.train.AdamOptimizer(0.0001).minimize(cross_entropy)
+
+    prediction = tf.equal(tf.argmax(output,1),tf.argmax(Y,1))
+
+    accuracy = tf.reduce_mean(tf.cast(prediction,tf.float32))
+
     with tf.Session() as sess:
-        sess.run(tf.global_variables_initializer())
-
-        for step in range(50):
-            batch_x,batch_y = get_next_batch(8)
-            #print(batch_y)
-            _,loss_ = sess.run([optimizer,loss],feed_dict= {X:batch_x,Y:batch_y,keep_prob:0.75})
-
-            accuracy_ = sess.run(accuracy,feed_dict={X:batch_x,Y:batch_y,keep_prob:1.0})
-            print(step, loss_, accuracy_)
-            if accuracy_ >= 0.8 :
-                saver.save(sess,"./model1.0.model",global_step=step)
-                break
-
-    #saver.save(sess,"digital_rec.model",global_step=step)
-
-def rec_by_cnn(image):
-    out = build_cnn();
-    saver = tf.train.Saver();
-    with tf.Session() as sess:
-        saver.restore(sess,tf.train.latest_checkpoint('.'))
-
-        predict = tf.argmax(tf.reshape(out,[-1,MAX_LEN,CHARSET_LEN]),2)
-        text_list = sess.run(predict,feed_dict={X:[image],keep_prob:1})
-        test = text_list[0].tolist()
-        vector = np.zeros(MAX_LEN*CHARSET_LEN)
-        i = 0
-        for p in test:
-            vector[i*10+p] = 1
-            i+=1
-        result = vec2text(vector)
-    print(predict)
-    return result
-
-if  __name__ == '__main__':
-    #netwrok = build_cnn()
-    #train_cnn()
+        for i in range(1000):
+            batch = data.get_data()
+            if i % 100:
+                acc = accuracy.eval(feed_dict = {X:batch[0],Y:batch[1],keep_prob:1.0})
+                print(i,acc)
+            train_step.run(feed_dict = {X:batch[0],Y:batch[1],keep_prob:0.5})
 
 
-    text,image = data.get_data(3)
-    image = image.flatten()/255
-    predict_text = rec_by_cnn(image)
-    print("Right:{},predict{}".format(text,predict_text))
-    vec = text2vec(text)
-    text2 = vec2text(vec)
-    print("test",text2)
-    #file = open(r'D:\project\deep-meter\data\numbers.txt',"r")
-    #get_next_batch()
+
+
+
+
+
