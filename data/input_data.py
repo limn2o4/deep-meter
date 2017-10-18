@@ -1,48 +1,34 @@
 import cv2
 import numpy as np
+import random
 import os
-import sys
-data_num = {}
+org_data = {}
 data_img = {}
 data_size = 0
-def get_number():
+def load_data():
     path = os.getcwd()
     file_path = os.path.abspath(os.path.join(path,"data/","numbers.txt"))
-    #print("file in:"+file_path)
+    print("file in:"+file_path)
     with open(file_path) as file:
         lines = file.readlines()
-        for line in lines:
+        data_size = len(lines)
+        for i,line in enumerate(lines):
             idx,num = line.split(':')
-            data_num.update({int(idx):int(num)})
+            org_data.update({int(idx):int(num)})
+    return data_size
+def next_batch(batch_size = 128):
+    batch_x = np.zeros([batch_size,1024])
+    batch_y = np.zeros([batch_size,11])
+    for i in range(batch_size):
+        idx = random.randint(1, data_size - 1)
+        img = cv2.imread("./data/image/" + str(idx) + ".jpg", 0)
+        batch_x[i:] = img.flatten()/255
+        batch_y[i][org_data[idx]] = 1
+    return [batch_x,batch_y]
 
-def get_image():
-    pwd  = os.getcwd()
-    path = os.path.join(pwd,"data");
-    #print(path)
-    images = os.listdir(path)
-    #print(images)
-    for i,name in enumerate(images):
-        image = cv2.imread(os.path.join(path,name),0)
-
-        if image is None:
-            continue
-
-        #print(i,name,image)
-        image = cv2.resize(image,(160,60),interpolation=cv2.INTER_LINEAR)
-        data_img.update({int(i):image})
-        #print(image)
-    #print(path)
-def get_size():
-    return len(data_img)
-def get_data(idx = 1):
-
-    return data_num[idx],data_img[idx];
 
 if __name__ == "data.input_data":
-    print("load data......")
+    print("......load data......")
+    data_size = load_data()
+    print("complete! size = {}".format(data_size))
     #print(sys.path[0])
-    get_number()
-    #print(data_num)
-    get_image()
-    #print(data_img)
-    print("complete!")
