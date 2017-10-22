@@ -14,13 +14,15 @@ def minfilter(image,ksize = 3):
     return dst
 
 
-img = cv2.imread("D:/project/deep-meter/meter2.jpg")
+img = cv2.imread("D:/project/deep-meter/meter0.jpg")
 gary = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
-binary = cv2.adaptiveThreshold(gary,255,cv2.ADAPTIVE_THRESH_MEAN_C,cv2.THRESH_BINARY,7,10)
+#binary = cv2.adaptiveThreshold(gary,255,cv2.ADAPTIVE_THRESH_MEAN_C,cv2.THRESH_BINARY,7,10)
+ret,binary = cv2.threshold(gary,100,255,cv2.THRESH_BINARY)
 #mn = minfilter(binary,3)
 
 binary = cv2.blur(binary,(3,3))
 cv2.imshow("out",binary)
+cv2.waitKey(0)
 x = cv2.Sobel(binary,cv2.CV_16S,1,0)
 y = cv2.Sobel(binary,cv2.CV_16S,0,1)
 absX = cv2.convertScaleAbs(x)
