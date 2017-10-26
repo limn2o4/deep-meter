@@ -3,7 +3,7 @@ import numpy as np
 import random
 import os
 org_data = {}
-data_img = {}
+org_num = {}
 data_size = 0
 def load_data():
     path = os.getcwd()
@@ -14,25 +14,35 @@ def load_data():
         data_size = len(lines)
         for i,line in enumerate(lines):
             idx,num = line.split(':')
-            org_data.update({int(idx):int(num)})
+            org_data.setdefault(int(num),[]).append(int(idx))
+    print([len(size) for size in org_data.values()])
     return data_size
 
-def next_batch(batch_size = 128):
+def next_batch(batch_size = 100):
+    batch_x = np.zeros([batch_size,1024])
+    batch_y = np.zeros([batch_size,10])
+    cnt  = 0
+    for num in range(0,10):
+        #print(len(org_data[num]))
+        for times in range(batch_size//10):
+            idx = org_data[num][random.randint(0, len(org_data[num])-1)]
+            #print(idx)
+            img = cv2.imread("./data/image/" + str(idx) + ".jpg", 0)
+            batch_x[cnt:] = img.flatten() / 255
+            batch_y[cnt][num] = 1
+            cnt += 1
+    #print(batch_y)
+    return [batch_x,batch_y]
+def next_batch_by_num(batch_size = 128,num = 5):
     batch_x = np.zeros([batch_size,1024])
     batch_y = np.zeros([batch_size,10])
     for i in range(batch_size):
-        idx = random.randint(1, data_size - 1)
-
-        if org_data[idx] != 10:
-            #print(idx,org_data[idx])
-            img = cv2.imread("./data/image/" + str(idx) + ".jpg", 0)
-            batch_x[i:] = img.flatten()/255
-            batch_y[i][org_data[idx]] = 1
+        #idx = org_data[num][random.randint(0,len(org_data[num])-1)]
+        idx = org_data[num][i]
+        #print(idx)
+        img = cv2.imread("./data/image/"+str(idx)+".jpg",0)
+        batch_x[i:] = img.flatten() / 255
+        batch_y[i][num] = 1
+    #print(batch_x)
     return [batch_x,batch_y]
 
-
-if __name__ == "data.input_data":
-    print("......load data......")
-    data_size = load_data()
-    print("complete! size = {}".format(data_size))
-    #print(sys.path[0])
