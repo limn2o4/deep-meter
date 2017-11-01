@@ -45,6 +45,8 @@ def get_network():
         output = tf.nn.softmax(tf.nn.bias_add(tf.matmul(fc1, w3), b3))
     return output
 def train_network(output):
+
+    globe_step = tf.Variable(0,)
     loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=output,labels=Y))
 
     train_step = tf.train.AdamOptimizer(0.0001).minimize(loss)
@@ -62,13 +64,13 @@ def train_network(output):
         #saver.restore(sess,tf.train.latest_checkpoint('.'))
         with tf.device("/gpu:0"):
             sess.run(tf.global_variables_initializer())
-            for i in range(5000):
+            for i in range(1000):
                 batch = data.next_batch_by_num(100,4)
                 # print(batch)
-                _,_loss = sess.run([train_step,loss],feed_dict={X: batch[0], Y: batch[1], keep_prob: 0.75})
-                if i % 1000 == 0:
+                _,_loss = sess.run([train_step,loss],feed_dict={X: batch[0], Y: batch[1], keep_prob: 0.5})
+                if i % 100 == 0:
                     batch_test = data.next_batch_by_num(100,4)
-                    pri_result = output.eval(feed_dict={X:batch[0],Y:batch[1],keep_prob:0.75})
+                    pri_result = output.eval(feed_dict={X:batch[0],Y:batch[1],keep_prob:0.5})
                     #loss = sess.run(cross_entropy,feed_dict={X: batch[0], Y: batch[1], keep_prob: 1.0})
                     acc = accuracy.eval(feed_dict={X: batch_test[0], Y: batch_test[1], keep_prob: 1.0})
                     print("step = {} loss = {} acc = {}".format(i, _loss,acc))
@@ -88,8 +90,4 @@ if __name__ == "__main__":
     #print(batch[0][0])
     out = get_network()
     train_network(out)
-
-
-
-
 
