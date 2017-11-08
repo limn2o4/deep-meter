@@ -17,3 +17,7 @@ dev dir:
 2017.11.1
     I find my network have special for number 5......I should fix that problem first
     mabey it's time to change the init way and stay the network as it is
+2017.11.8
+    I change to my orginal network and use trunc_normal to initialize
+    I got one prefect result but I don't know it is just luck
+    And it's not a surivor bias it's true I made it!!!!!!!!
