@@ -2,19 +2,22 @@ import cv2
 import numpy as np
 import random
 import os
+import csv
 org_data = {}
 org_num = {}
 data_size = 0
 def load_data():
     path = os.getcwd()
-    file_path = os.path.abspath(os.path.join(path,"data/","numbers.txt"))
+    file_path = os.path.abspath(os.path.join(path,'data',"lable.csv"))
     #print("file in:"+file_path)
-    with open(file_path) as file:
-        lines = file.readlines()
-        data_size = len(lines)
-        for i,line in enumerate(lines):
-            idx,num = line.split(':')
+    with open(file_path,newline='') as file:
+        reader = csv.reader(file)
+        #data_size = len(lines)
+        for i,row in enumerate(reader):
+            idx = row[0]
+            num = row[1]
             org_data.setdefault(int(num),[]).append(int(idx))
+            data_size = i
     print([len(size) for size in org_data.values()])
     return data_size
 
@@ -33,12 +36,12 @@ def next_batch(batch_size = 100):
             cnt += 1
     #print(batch_y)
     return [batch_x,batch_y]
-def next_batch_by_num(batch_size = 128,num = 5):
+def next_batch_by_num(batch_size,num):
     batch_x = np.zeros([batch_size,1024])
     batch_y = np.zeros([batch_size,10])
     for i in range(batch_size):
-        #idx = org_data[num][random.randint(0,len(org_data[num])-1)]
-        idx = org_data[num][i]
+        idx = org_data[num][random.randint(0,len(org_data[num])-1)]
+        #idx = org_data[num][i]
         #print(idx)
         img = cv2.imread("./data/image/"+str(idx)+".jpg",0)
         batch_x[i:] = img.flatten() / 255
@@ -46,3 +49,6 @@ def next_batch_by_num(batch_size = 128,num = 5):
     #print(batch_x)
     return [batch_x,batch_y]
 
+if __name__ == "__main__":
+    print('------loading------\n')
+    load_data()
