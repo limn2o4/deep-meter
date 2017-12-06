@@ -66,7 +66,7 @@ def train_network(output):
         #saver.restore(sess,tf.train.latest_checkpoint('.'))
         with tf.device("/gpu:0"):
             sess.run(tf.global_variables_initializer())
-            for i in range(1000):
+            for i in range(2000):
                 batch = data.next_batch(100)
                 #print(batch)
                 _,_loss = sess.run([train_step,loss],feed_dict={X: batch[0], Y: batch[1], keep_prob: 0.75})
@@ -76,35 +76,120 @@ def train_network(output):
                     #loss = sess.run(cross_entropy,feed_dict={X: batch[0], Y: batch[1], keep_prob: 1.0})
                     acc = accuracy.eval(feed_dict={X: batch_test[0], Y: batch_test[1], keep_prob: 1.0})
                     print("step = {} loss = {} acc = {}".format(i, _loss,acc))
-                    if(i == 1000) :
-                        saver.save(sess,"./m.model",global_step=i)
+                    # if(i == 1000) :
+                    #     saver.save(sess,"./m.model",global_step=i)
                     #print("result = {} correct = {}".format(pri_result[0],batch_test[1][0]))
     time_en = time.time()
     print("using :{}s".format(time_en - time_st))
 
 
 def rec_number(image):
+    num = len(image)
     output = get_network()
     saver = tf.train.Saver()
+    st = time.time()
     with tf.Session() as sess ,tf.device("/gpu:0"):
+
         saver.restore(sess,tf.train.latest_checkpoint("."))
-        #print(tf.train.latest_checkpoint("."))
-        #image_input = image.flatten()/255
-        result = sess.run(output,feed_dict={X:[image],keep_prob:1.0})
-        print(result)
-        print(np.argmax(result))
+            #print(tf.train.latest_checkpoint("."))
+            #image_input = image.flatten()/255
+        pri_result = sess.run(output,feed_dict={X:image,keep_prob:1.0})
+            #print(result)
+        en = time.time()
+        res = []
+        for i in range(num):
+            res.append(np.argmax(pri_result[i]))
+
+    print("Total :{},used {}s,result = {}".format(num,en - st,res))
+    return res
+def split(image):
+    img_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    ret, img_thresh = cv2.threshold(img_gray, 130, 255, cv2.THRESH_OTSU)
+    #cv2.imshow("out", img_thresh)
+    h, w = np.shape(img_thresh)
+    # print(h, w)
+    y_hist = []
+    for i in range(w):
+        cnt = 0
+        for j in range(h):
+            if img_thresh[j][i] != 0:
+                cnt += 1
+        y_hist.append(cnt)
+    # print(y_hist)
+    x_hist = []
+    for i in range(h):
+        cnt = 0
+        for j in range(w):
+            if img_thresh[i][j] != 0:
+                cnt += 1
+        x_hist.append(cnt)
+    #print(x_hist)
+    mean = np.argmax(np.bincount(y_hist))
+    # print(mean)
+    # sliding-window algorithm
+    st = []
+    en = []
+    flag = 0
+    for j in range(w):
+        if flag == 0 and y_hist[j] - mean > mean:
+            st.append(j)
+            flag = 1
+        if flag == 1 and y_hist[j] - mean <= mean:
+            en.append(j)
+            flag = 0
+    x_st = 0
+    x_en = 0
+    for i in range(h):
+        if x_hist[i] != 0 and x_st == 0:
+            x_st = i
+        if x_hist[i] == 0 and x_st != 0 and x_en == 0:
+            x_en = i
+    #print(x_st, x_en)
+    #print(st, en)
+    size = len(en)
+    batch = []
+    for i in range(size):
+        if en[i] - st[i] < 10:
+            continue
+        else:
+            tempfile = img_thresh[0:h, st[i]:en[i]]
+            tempfile = cv2.resize(tempfile, (32, 32), interpolation=cv2.INTER_LINEAR)
+            # cv2.imshow(str(i),tempfile)
+            # cv2.waitKey(0)
+            #rec_number([tempfile.flatten()/255],1)
+            batch.append(tempfile.flatten()/255)
+    res = rec_number(batch)
+    return res
 
 if __name__ == "__main__":
     data.load_data()
-    #print(data.next_batch(1))
-    # for i in range(3) :
-    #     data.next_batch(10)
-    #batch = data.next_batch_by_num(30,4)
-    #print(batch[0][0])
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-Input',type = str)
+    parser.add_argument('-Output',type = str)
+
+
+    args = parser.parse_args()
+    input_path = args.Input
+    output_path = args.Output
+
+    image = cv2.imread(input,0)
+    with open(output_path,'a') as file:
+        result = split(image)
+        file.write("result:{}".format(result))
+    # input_path,output_path
     #out = get_network()
     #train_network(get_network())
-    image = cv2.imread("./data/image/10.jpg",0)
-    image_in = image.flatten()/255
-    rec_number(image_in)
+
+    # image = cv2.imread("./1.jpg")
+    # cv2.imshow("orginal",image)
+    # cv2.waitKey(0)
+    # split(image)
+    #testing
+    # image = cv2.imread("./data/image/"+str(random.randint(1,30000))+".jpg",0)
+    # cv2.imshow("out1",image)
+    # cv2.waitKey(0)
+    # rec_number([image.flatten()/255],1)
+
 
 
