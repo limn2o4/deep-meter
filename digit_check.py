@@ -15,14 +15,14 @@ def build_network():
     X = Input(shape=(28,28,1))
 
     conv1 = Conv2D(filters = 6,kernel_size = (5,5),padding = 'valid',activation = 'tanh')(X)
-    pool1 = MaxPool2D(kernel_size = (2, 2))(conv1)
-    conv2 = Conv2D(filters = 16,kernel_size = (10, 10),padding = 'valid',acitvation = 'tanh')(pool1)
-    pool2 = MaxPool2D(Kernel_size = (2,2))(conv2)
+    pool1 = MaxPool2D(pool_size = (2, 2))(conv1)
+    conv2 = Conv2D(filters = 16,kernel_size = (10, 10),padding = 'valid',activation = 'tanh')(pool1)
+    pool2 = MaxPool2D(pool_size = (2,2))(conv2)
     flat = Flatten()(pool2)
     fc1 = Dense(120,activation = 'tanh')(flat)
     fc2 = Dense(48,activation='tanh')(fc1)
     output = Dense(10,activation='softmax')(fc2)
-    model = Model(inputs = x,outputs = output)
+    model = Model(inputs = X,outputs = output)
     return model
 
 
@@ -38,9 +38,8 @@ def train_network():
 
 
 def rec_number():
-    #TODO:need finish training
-
-
+    pass
+    # TODO:need finish training
 
 def split(image):
     img_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -104,5 +103,5 @@ def split(image):
 if __name__ == "__main__":
     #data.load_data()
 
-
+    build_network()
 
